@@ -7,7 +7,7 @@ also typically use the -h flag)
 
 You first want to get a signal from the server:
 
-./siggen -n netid1-netid2 -t "teamname"
+./siggen -n netid1-netid2 -t "teamname" (I already created one with our netIDs. Our team name is "MatiasDerin")
 
 This will create several files for you. Some signals (named sig-N.bin, where N ranges from 0 to
 however many signals we decide to give you) and secret. sig-N.bin files are your radio signal data. The secret file you
