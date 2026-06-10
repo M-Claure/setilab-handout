@@ -1,0 +1,6 @@
+declare -x KEEP_SLURM_WORK_DIR=false
+declare -x RENAMED_WORK_DIR_PATH=/home/fkz1278/mysetilab/setilab-handout/seti-run-$SLURM_JOB_ID-eval-2026-06-10T18:22:52-05:00
+declare -x SETI_GOLDEN_DIR=/home/cs213lab/seti-scripts-slurm
+declare -x SETI_HANDOUT_DIR=/home/cs213lab/HANDOUT
+declare -x PERL5LIB=/home/cs213lab/seti-scripts-slurm
+declare -x SETI_EVAL_TO_RUN='/home/cs213lab/seti-scripts-slurm/seti-eval -n "fkz1278-jhl6904" -t "MatiasDerin" -k 315c2016e534c30973c89e686dabfe8d -a 2'

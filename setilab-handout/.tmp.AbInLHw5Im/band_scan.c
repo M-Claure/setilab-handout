@@ -13,7 +13,7 @@
 #define ALIENS_HIGH 150000.0
 
 void usage() {
-  printf("usage: band_scan text|bin|mmap signal_file Fs filter_order num_bands num_threads num_processors\n");
+  printf("usage: band_scan text|bin|mmap signal_file Fs filter_order num_bands\n");
 }
 
 double avg_power(double* data, int num) {
@@ -58,7 +58,7 @@ void remove_dc(double* data, int num) {
 }
 
 
-int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads, int num_processors, double* lb, double* ub) {
+int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, double* ub) {
 
   double Fc        = (sig->Fs) / 2;
   double bandwidth = Fc / num_bands;
@@ -86,13 +86,11 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
     hamming_window(filter_order,filter_coeffs);
 
     // Convolve
-    convolve_and_compute_power_parallel(sig->num_samples,
+    convolve_and_compute_power(sig->num_samples,
                                sig->data,
                                filter_order,
                                filter_coeffs,
-                               &(band_power[band]),
-                               num_threads,
-                               num_processors);
+                               &(band_power[band]));
 
   }
 
@@ -170,39 +168,31 @@ Context switches %ld\n",
 
 int main(int argc, char* argv[]) {
 
-  if (argc != 8) {
+  if (argc != 6) {
     usage();
     return -1;
   }
 
-  char sig_type      = toupper(argv[1][0]);
-  char* sig_file     = argv[2];
-  double Fs          = atof(argv[3]);
-  int filter_order   = atoi(argv[4]);
-  int num_bands      = atoi(argv[5]);
-  int num_threads    = atoi(argv[6]);
-  int num_processors = atoi(argv[7]);
+  char sig_type    = toupper(argv[1][0]);
+  char* sig_file   = argv[2];
+  double Fs        = atof(argv[3]);
+  int filter_order = atoi(argv[4]);
+  int num_bands    = atoi(argv[5]);
 
   assert(Fs > 0.0);
   assert(filter_order > 0 && !(filter_order & 0x1));
   assert(num_bands > 0);
-  assert(num_threads > 0);
-  assert(num_processors > 0);
 
-  printf("type:       %s\n\
-file:       %s\n\
-Fs:         %lf Hz\n\
-order:      %d\n\
-bands:      %d\n\
-threads:    %d\n\
-processors: %d\n",
+  printf("type:     %s\n\
+file:     %s\n\
+Fs:       %lf Hz\n\
+order:    %d\n\
+bands:    %d\n",
          sig_type == 'T' ? "Text" : (sig_type == 'B' ? "Binary" : (sig_type == 'M' ? "Mapped Binary" : "UNKNOWN TYPE")),
          sig_file,
          Fs,
          filter_order,
-         num_bands,
-         num_threads,
-         num_processors);
+         num_bands);
 
   printf("Load or map file\n");
 
@@ -234,7 +224,7 @@ processors: %d\n",
 
   double start = 0;
   double end   = 0;
-  if (analyze_signal(sig, filter_order, num_bands, num_threads, num_processors, &start, &end)) {
+  if (analyze_signal(sig, filter_order, num_bands, &start, &end)) {
     printf("POSSIBLE ALIENS %lf-%lf HZ (CENTER %lf HZ)\n", start, end, (end + start) / 2.0);
   } else {
     printf("no aliens\n");
