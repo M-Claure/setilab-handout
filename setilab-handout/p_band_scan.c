@@ -108,26 +108,34 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
   unsigned long long tstart = get_cycle_count();
 
   double filter_coeffs[filter_order + 1];
-  double band_power[num_bands];
-  for (int band = 0; band < num_bands; band++) {
-    // Make the filter
-    generate_band_pass(sig->Fs,
-                       band * bandwidth + 0.0001, // keep within limits
-                       (band + 1) * bandwidth - 0.0001,
-                       filter_order,
-                       filter_coeffs);
-    hamming_window(filter_order,filter_coeffs);
+  double band_power=malloc(num_bands *  sizeof(double));
+  if (num_threads > num_bands) num_threads= num_bands;
+  pthread_t *threads = malloc(num_threads * sizeof(pthread_t));
+  thread_args_t *args= malloc(num_threads * sizeof(thread_args_t));
 
-    // Convolve
-    convolve_and_compute_power_parallel(sig->num_samples,
-                               sig->data,
-                               filter_order,
-                               filter_coeffs,
-                               &(band_power[band]),
-                               num_threads,
-                               num_processors);
-
+  int base= num_bands / num_threads;
+  int extra= num_bands % num_threads;
+  int cursor= 0;
+  for (int t = 0; t < num_threads; t++) {
+    int my_bands           = base + (t < extra ? 1 : 0);
+    args[t].thread_id= t;
+    args[t].num_processors= num_processors;
+    args[t].sig= sig;
+    args[t].filter_order= filter_order;
+    args[t].bandwidth= bandwidth;
+    args[t].band_start= cursor;
+    args[t].band_end= cursor + my_bands;
+    args[t].band_power = band_power;
+    cursor += my_bands;
+    pthread_create(&threads[t], NULL, band_worker, &args[t]);
   }
+
+  for (int i = 0; i< num_threads; i++) {
+    pthread_join(threads[i], NULL);
+  }
+
+  free(threads);
+  free(args);
 
   unsigned long long tend = get_cycle_count();
   double end = get_seconds();
@@ -277,4 +285,3 @@ processors: %d\n",
 
   return 0;
 }
-
