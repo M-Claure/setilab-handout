@@ -122,7 +122,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
   }
 
   for (int t = 0; t < num_threads; t++) {
-    pthread_join(threads[t],NULL;
+    pthread_join(threads[t],NULL);
   }
 
   free(threads);
