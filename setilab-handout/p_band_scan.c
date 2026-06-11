@@ -58,17 +58,19 @@ void remove_dc(double* data, int num) {
     data[i] -= dc;
   }
 }
-typedef struct{
+/* struct holding everything a worker thread needs */
+typedef struct {
   int thread_id;
-  int num_threads;
-  signal* sig;
+  int num_processors;
+  signal *sig;
   int filter_order;
-  int num_bands;
   double bandwidth;
-  double* band_power; } thread_data;
-
+  int band_start;   
+  int band_end;     
+  double *band_power;   
+} thread_args_t;
 static void *band_worker(void *argument1) {
-  thread_data *a= (thread_data *)argument1;
+  thread_args_t *a= (thread_args_t *)argument1;
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(a->thread_id % a->num_processors, &cpuset);
