@@ -61,23 +61,19 @@ void remove_dc(double* data, int num) {
 /* struct holding everything a worker thread needs */
 typedef struct {
   int thread_id;
-  int num_processors;
-  signal *sig;
+  int num_threads;
+  signal* sig;
   int filter_order;
-  double bandwidth;
-  int band_start;   
-  int band_end;     
+  int num_bands;
+  double bandwidth;    
   double *band_power;   
 } thread_args_t;
-static void *band_worker(void *argument1) {
-  thread_args_t *a= (thread_args_t *)argument1;
-  cpu_set_t cpuset;
-  CPU_ZERO(&cpuset);
-  CPU_SET(a->thread_id % a->num_processors, &cpuset);
-  pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+
+void *band_worker(void *argument1) {
+  thread_args_t* a=(thread_args_t*) argument1;
   double *filter_coeffs = malloc((a->filter_order + 1) * sizeof(double));
 
-  for (int band = a->band_start; band < a->band_end; band++) {
+  for (int band = a->thread_id; band < a->num_bands; band+=num_threads) {
     generate_band_pass(a->sig->Fs, band * a->bandwidth + 0.0001,
                       (band + 1) * a->bandwidth - 0.0001,
                        a->filter_order,
@@ -109,31 +105,31 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
   double start = get_seconds();
   unsigned long long tstart = get_cycle_count();
 
-  double filter_coeffs[filter_order + 1];
   double band_power=malloc(num_bands *  sizeof(double));
   if (num_threads > num_bands) num_threads= num_bands;
-  pthread_t *threads = malloc(num_threads * sizeof(pthread_t));
-  thread_args_t *args= malloc(num_threads * sizeof(thread_args_t));
+  pthread_t* threads = malloc(num_threads * sizeof(pthread_t));
+  thread_args_t* args= malloc(num_threads * sizeof(thread_args_t));
 
-  int base= num_bands / num_threads;
-  int extra= num_bands % num_threads;
-  int cursor= 0;
-  for (int t = 0; t < num_threads; t++) {
-    int my_bands           = base + (t < extra ? 1 : 0);
-    args[t].thread_id= t;
-    args[t].num_processors= num_processors;
-    args[t].sig= sig;
-    args[t].filter_order= filter_order;
-    args[t].bandwidth= bandwidth;
-    args[t].band_start= cursor;
-    args[t].band_end= cursor + my_bands;
+   for (int t = 0; t < num_threads; t++) {
+    args[t].thread_id = t;
+    args[t].num_threads = num_threads;
+    args[t].sig = sig;
+    args[t].filter_order = filter_order;
+    args[t].num_bands = num_bands;
+    args[t].bandwidth = bandwidth;
     args[t].band_power = band_power;
-    cursor += my_bands;
-    pthread_create(&threads[t], NULL, band_worker, &args[t]);
+
+    if (pthread_create(&threads[t], NULL, band_worker, &args[t]) != 0) {
+      perror("pthread_create");
+      exit(-1);
+    }
   }
 
-  for (int i = 0; i< num_threads; i++) {
-    pthread_join(threads[i], NULL);
+  for (int t = 0; t < num_threads; t++) {
+    if (pthread_join(threads[t], NULL) != 0) {
+      perror("pthread_join");
+      exit(-1);
+    }
   }
 
   free(threads);
