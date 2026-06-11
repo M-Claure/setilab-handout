@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <sched.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -64,12 +66,16 @@ typedef struct {
   signal* sig;
   int filter_order;
   int num_bands;
+  int num_processors;
   double bandwidth;    
   double *band_power;   
 } thread_args_t;
 
 void *band_worker(void *argument1) {
   thread_args_t* a=(thread_args_t*) argument1;
+  cpu_set_t set;
+  CPU_ZERO(&set);
+  CPU_SET(a->thread_id % a->processors, &set);
   double *filter_coeffs = malloc((a->filter_order + 1) * sizeof(double));
 
   for (int band = a->thread_id; band < a->num_bands; band+=a->num_threads) {
@@ -117,6 +123,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
     args[t].num_bands = num_bands;
     args[t].bandwidth = bandwidth;
     args[t].band_power = band_power;
+    args[t].num_processors = num_processors;
 
     pthread_create(&threads[t], NULL, band_worker, &args[t]);
   }
