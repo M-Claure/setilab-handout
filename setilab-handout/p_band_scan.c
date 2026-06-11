@@ -7,6 +7,8 @@
 #include "signal.h"
 #include "timing.h"
 #include <pthread.h>
+#include "signal.h"
+#include "timing.h"
 #define MAXWIDTH 40
 #define THRESHOLD 2.0
 #define ALIENS_LOW  50000.0
@@ -63,7 +65,31 @@ typedef struct{
   int filter_order;
   int num_bands;
   double bandwidth;
-  double* band_power; } thread_data; 
+  double* band_power; } thread_data;
+
+static void *band_worker(void *argument1) {
+  thread_data *a= (thread_data *)argument1;
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(a->thread_id % a->num_processors, &cpuset);
+  pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  double *filter_coeffs = malloc((a->filter_order + 1) * sizeof(double));
+
+  for (int band = a->band_start; band < a->band_end; band++) {
+    generate_band_pass(a->sig->Fs, band * a->bandwidth + 0.0001,
+                      (band + 1) * a->bandwidth - 0.0001,
+                       a->filter_order,
+                       filter_coeffs);
+    hamming_window(a->filter_order, filter_coeffs);
+    convolve_and_compute_power(a->sig->num_samples,
+                               a->sig->data,
+                               a->filter_order,
+                               filter_coeffs,
+                               &(a->band_power[band]));
+  } 
+  free(filter_coeffs);
+  pthread_exit(NULL);
+}
 
 int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads, int num_processors, double* lb, double* ub) {
 
