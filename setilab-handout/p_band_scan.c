@@ -7,8 +7,7 @@
 #include "signal.h"
 #include "timing.h"
 #include <pthread.h>
-#include "signal.h"
-#include "timing.h"
+
 #define MAXWIDTH 40
 #define THRESHOLD 2.0
 #define ALIENS_LOW  50000.0
@@ -73,7 +72,7 @@ void *band_worker(void *argument1) {
   thread_args_t* a=(thread_args_t*) argument1;
   double *filter_coeffs = malloc((a->filter_order + 1) * sizeof(double));
 
-  for (int band = a->thread_id; band < a->num_bands; band+=num_threads) {
+  for (int band = a->thread_id; band < a->num_bands; band+=a->num_threads) {
     generate_band_pass(a->sig->Fs, band * a->bandwidth + 0.0001,
                       (band + 1) * a->bandwidth - 0.0001,
                        a->filter_order,
@@ -105,7 +104,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
   double start = get_seconds();
   unsigned long long tstart = get_cycle_count();
 
-  double band_power=malloc(num_bands *  sizeof(double));
+  double *band_power=malloc(num_bands *  sizeof(double));
   if (num_threads > num_bands) num_threads= num_bands;
   pthread_t* threads = malloc(num_threads * sizeof(pthread_t));
   thread_args_t* args= malloc(num_threads * sizeof(thread_args_t));
@@ -119,17 +118,11 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads
     args[t].bandwidth = bandwidth;
     args[t].band_power = band_power;
 
-    if (pthread_create(&threads[t], NULL, band_worker, &args[t]) != 0) {
-      perror("pthread_create");
-      exit(-1);
-    }
+    pthread_create(&threads[t], NULL, band_worker, &args[t]);
   }
 
   for (int t = 0; t < num_threads; t++) {
-    if (pthread_join(threads[t], NULL) != 0) {
-      perror("pthread_join");
-      exit(-1);
-    }
+    pthread_join(threads[t],NULL;
   }
 
   free(threads);
