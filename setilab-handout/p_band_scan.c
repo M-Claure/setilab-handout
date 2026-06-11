@@ -6,7 +6,7 @@
 #include "filter.h"
 #include "signal.h"
 #include "timing.h"
-
+#include <pthread.h>
 #define MAXWIDTH 40
 #define THRESHOLD 2.0
 #define ALIENS_LOW  50000.0
@@ -56,7 +56,14 @@ void remove_dc(double* data, int num) {
     data[i] -= dc;
   }
 }
-
+typedef struct{
+  int thread_id;
+  int num_threads;
+  signal* sig;
+  int filter_order;
+  int num_bands;
+  double bandwidth;
+  double* band_power; } thread_data; 
 
 int analyze_signal(signal* sig, int filter_order, int num_bands, int num_threads, int num_processors, double* lb, double* ub) {
 
