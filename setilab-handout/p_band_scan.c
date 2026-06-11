@@ -75,7 +75,11 @@ void *band_worker(void *argument1) {
   thread_args_t* a=(thread_args_t*) argument1;
   cpu_set_t set;
   CPU_ZERO(&set);
-  CPU_SET(a->thread_id % a->processors, &set);
+  CPU_SET(a->thread_id % a->num_processors, &set);
+  if (sched_setaffinity(0, sizeof(set), &set) < 0) {
+    perror("Can't setaffinity");
+    exit(-1);
+  }
   double *filter_coeffs = malloc((a->filter_order + 1) * sizeof(double));
 
   for (int band = a->thread_id; band < a->num_bands; band+=a->num_threads) {
